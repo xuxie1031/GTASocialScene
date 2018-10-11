@@ -12,4 +12,6 @@
 
 #include "..\..\inc\main.h"
 
+#include <vector>
+
 void ScriptMain();

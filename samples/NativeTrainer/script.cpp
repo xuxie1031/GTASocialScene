@@ -1873,12 +1873,122 @@ void process_misc_menu()
 	}
 }
 
+
+std::vector<Ped> waitPeds;
+
+
+void process_social_bus()
+{
+	Player player = PLAYER::PLAYER_ID();
+	Ped playerPed = PLAYER::PLAYER_PED_ID();
+	if (!ENTITY::DOES_ENTITY_EXIST(playerPed) || !PLAYER::IS_PLAYER_CONTROL_ON(player))
+	{
+		const char* info = "player not available!\n";
+		return;
+	}
+
+	// create participants
+	Hash busModel = GAMEPLAY::GET_HASH_KEY("BUS");
+}
+
+void process_social_taxi()
+{}
+
+void process_social_meet()
+{}
+
+void process_social_cowalk()
+{}
+
+void process_social_generation()
+{}
+
+int activeLineIndexSocial = 0;
+
+void process_social_menu()
+{
+	const float lineWidth = 250;
+	const int lineCount = 5;
+
+	std::string caption = "SOCIAL OPTIONS";
+
+	static LPCSTR lineCaption[lineCount] = {
+		"BUS SCENE",
+		"TAXI SCENE",
+		"MEET SCENE",
+		"COWALK SCENE",
+		"GENERATION SCENE"
+	};
+
+	DWORD waitTime = 150;
+	while (true)
+	{
+		DWORD maxTickCount = GetTickCount() + waitTime;
+		do
+		{
+			draw_menu_line(caption, lineWidth, 15.0, 18.0, 0.0, 5.0, false, true);
+			for(int i=0; i<lineCount; i++)
+				if(i != activeLineIndexSocial)
+					draw_menu_line(lineCaption[i], lineWidth, 9.0, 60.0+i*36.0, 0.0, 9.0, false, false);
+			draw_menu_line(lineCaption[activeLineIndexSocial], lineWidth + 1.0, 11.0, 56.0 + activeLineIndexSocial * 36.0, 0.0, 7.0, true, false);
+			update_features();
+			WAIT(0);
+		} while (GetTickCount() < maxTickCount);
+
+		waitTime = 0;
+		if (trainer_switch_pressed())
+		{
+			menu_beep();
+			break;
+		}
+
+		bool bSelect, bBack, bUp, bDown;
+		get_button_state(&bSelect, &bBack, &bUp, &bDown, NULL, NULL);
+		if (bSelect)
+		{
+			menu_beep();
+			switch (activeLineIndexSocial)
+			{
+			case 0:
+				process_social_bus();
+				break;
+			case 1:
+				process_social_taxi();
+				break;
+			case 2:
+				process_social_meet();
+				break;
+			case 3:
+				process_social_cowalk();
+				break;
+			case 4:
+				process_social_generation();
+				break;
+			}
+		}
+		else if (bUp)
+		{
+			menu_beep();
+			if (activeLineIndexSocial == 0) activeLineIndexSocial = lineCount;
+			activeLineIndexSocial--;
+			waitTime = 150;
+		}
+		else if (bDown)
+		{
+			menu_beep();
+			activeLineIndexSocial++;
+			if (activeLineIndexSocial == lineCount) activeLineIndexSocial = 0;
+			waitTime = 150;
+		}
+	}
+}
+
 int activeLineIndexMain = 0;
 
 void process_main_menu()
 {
 	const float lineWidth = 250.0;
-	const int lineCount = 7;	
+	const int lineCount = 8;	
 
 	std::string caption = "NATIVE  TRAINER  (AB)";
 
@@ -1889,7 +1999,8 @@ void process_main_menu()
 		"WORLD",
 		"TIME",
 		"WEATHER",
-		"MISC"
+		"MISC",
+		"SOCIAL"
 	};
 
 	DWORD waitTime = 150;
@@ -1939,6 +2050,9 @@ void process_main_menu()
 					break;
 				case 6:
 					process_misc_menu();
+					break;
+				case 7:
+					process_social_menu();
 					break;
 			}
 			waitTime = 200;
