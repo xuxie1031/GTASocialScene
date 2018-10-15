@@ -1,10 +1,13 @@
 #pragma once
 
 #include "../../inc/natives.h"
-#include "../../inc/types.h"
 #include "../../inc/enums.h"
+#include "../../inc/types.h"
 
 #include <utility>
+#include <random>
+
+#define MAXWAITPEDNUM 6
 
 typedef struct boundingbox {
 	std::pair<float, float> xlim;

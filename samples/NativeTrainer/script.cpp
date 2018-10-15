@@ -15,6 +15,7 @@
 
 #include "script.h"
 #include "keyboard.h"
+#include "social.h"
 
 #include <string>
 #include <ctime>
@@ -1873,9 +1874,68 @@ void process_misc_menu()
 	}
 }
 
+Ped* waitPedsGlobal;
 
-std::vector<Ped> waitPeds;
+static Vector3 process_social_sample_bbx_point(BBX bbx)
+{
+	std::random_device rd;
 
+	std::mt19937 genXlim(rd());
+	std::uniform_real_distribution<float> distributionXlim(bbx.xlim.first, bbx.xlim.second);
+	std::mt19937 genYlim(rd());
+	std::uniform_real_distribution<float> distributionYlim(bbx.ylim.first, bbx.ylim.second);
+	std::mt19937 genZlim(rd());
+	std::uniform_real_distribution<float> distributionZlim(bbx.zlim.first, bbx.zlim.second);
+
+	return { distributionXlim(genXlim), DWORD(0), distributionYlim(genYlim), DWORD(0), distributionZlim(genZlim), DWORD(0) };
+}
+
+static Ped process_social_create_random_ped(Vector3 createLoc)
+{
+	int pedModelRowOffset = 3, pedModelRowRange = 66, pedModelColRange = 10;
+	int row = pedModelRowOffset + rand() % pedModelRowRange, col = rand() % pedModelColRange;
+	Hash pedModel = GAMEPLAY::GET_HASH_KEY((char *)pedModels[row][col]);
+	if (STREAMING::IS_MODEL_IN_CDIMAGE(pedModel) && STREAMING::IS_MODEL_VALID(pedModel))
+	{
+		STREAMING::REQUEST_MODEL(pedModel);
+		while (!STREAMING::HAS_MODEL_LOADED(pedModel))	WAIT(0);
+		WAIT(100);
+	}
+
+	//std::random_device rd;
+	//std::mt19937 gen(rd());
+	//std::uniform_real_distribution <float> distribution(250.0, 360.0);
+	//float createHeading = distribution(gen);
+	float createHeading = 360.0;
+
+	Ped ped = PED::CREATE_PED(0, pedModel, createLoc.x, createLoc.y, createLoc.z, createHeading, false, true);
+	return ped;
+}
+
+//static bool teleport_ped(Ped ped, Vector3 coords)
+//{
+//	bool groundFound = false;
+//
+//	static float groundCheckHeight[] = {
+//		100.0, 150.0, 50.0, 0.0, 200.0, 250.0, 300.0, 350.0, 400.0,
+//		450.0, 500.0, 550.0, 600.0, 650.0, 700.0, 750.0, 800.0
+//	};
+//	for (int i = 0; i < sizeof(groundCheckHeight) / sizeof(float); i++)
+//	{
+//		ENTITY::SET_ENTITY_COORDS_NO_OFFSET(ped, coords.x, coords.y, groundCheckHeight[i], 0, 0, 1);
+//		WAIT(100);
+//		if (GAMEPLAY::GET_GROUND_Z_FOR_3D_COORD(coords.x, coords.y, groundCheckHeight[i], &coords.z, FALSE))
+//		{
+//			groundFound = true;
+//			coords.z += 3.0;
+//			ENTITY::SET_ENTITY_COORDS_NO_OFFSET(ped, coords.x, coords.y, coords.z, 0, 0, 1);
+//			WAIT(0);
+//			break;
+//		}
+//	}
+//
+//	return groundFound;
+//}
 
 void process_social_bus()
 {
@@ -1886,22 +1946,334 @@ void process_social_bus()
 		const char* info = "player not available!\n";
 		return;
 	}
+	ENTITY::SET_ENTITY_VISIBLE(playerPed, false, false);
 
 	// create participants
 	Hash busModel = GAMEPLAY::GET_HASH_KEY("BUS");
+	if (STREAMING::IS_MODEL_IN_CDIMAGE(busModel) && STREAMING::IS_MODEL_VALID(busModel))
+	{
+		STREAMING::REQUEST_MODEL(busModel);
+		while (!STREAMING::HAS_MODEL_LOADED(busModel))	WAIT(0);
+		WAIT(100);
+	}
+
+	Vector3 busStartLoc = { float(-580.12085), DWORD(0), float(-383.599579), DWORD(0), float(34.861534), DWORD(0) };
+	float busHeading = 290.008911;
+	Vector3 busStopLoc = { float(-476.0), DWORD(0), float(-387.649231), DWORD(0), float(34.044487), DWORD(0) };
+	Vector3 pedExitLoc = { float(-300.157440), DWORD(0), float(-415.487366), DWORD(0), float(30.066252), DWORD(0) };
+	Vector3 busExitLoc = { float(-298.098877), DWORD(0), float(-410.166718), DWORD(0), float(30.014061), DWORD(0) };
+
+	BBX busBBX = { std::make_pair(-489.809692, -476.095306), std::make_pair(-393.457214, -391.705597), std::make_pair(34.4, 34.5) };
+
+	GAMEPLAY::CLEAR_AREA_OF_PEDS(busStopLoc.x, busStopLoc.y, busStopLoc.z, 1e7, false);
+	GAMEPLAY::CLEAR_AREA_OF_VEHICLES(busStopLoc.x, busStopLoc.y, busStopLoc.z, 1e7, false, false, false, false, false);
+
+	Vehicle bus = VEHICLE::CREATE_VEHICLE(busModel, busStartLoc.x, busStartLoc.y, busStartLoc.z, busHeading, false, true);
+	Vector3 ped0Loc = process_social_sample_bbx_point(busBBX);
+	Ped driver = process_social_create_random_ped(ped0Loc);
+	ENTITY::SET_ENTITY_VISIBLE(driver, false, false);
+	PED::SET_PED_INTO_VEHICLE(driver, bus, -1);
+	Ped ped0 = process_social_create_random_ped(ped0Loc);
+	PED::SET_PED_INTO_VEHICLE(ped0, bus, 0);
+
+	Vector3 ped1Loc = {float(-475.211212), DWORD(0), float(-392.578583), DWORD(0), float(34.020618), DWORD(0)};
+	Ped ped1 = process_social_create_random_ped(ped1Loc);
+	Vector3 ped2Loc = {float(-476.891602), DWORD(0), float(-392.570831), DWORD(0), float(34.026123), DWORD(0)};
+	Ped ped2 = process_social_create_random_ped(ped2Loc);
+	Vector3 ped3Loc = {float(-479.492371), DWORD(0), float(-394.021118), DWORD(0), float(34.054424), DWORD(0)};
+	Ped ped3 = process_social_create_random_ped(ped3Loc);
+	Vector3 ped4Loc = { float(-514.646179), DWORD(0), float(-389.50354), DWORD(0), float(35.12674), DWORD(0) };
+	Ped ped4 = process_social_create_random_ped(ped4Loc);
+
+	// Task 1: bus drives to stop area
+	AI::TASK_VEHICLE_DRIVE_TO_COORD(driver, bus, busStopLoc.x, busStopLoc.y, busStopLoc.z, 10.0, 1, busModel, 786603, 0.5f, true);
+	bool task1Flag = false;
+	// Task 1: ending condition
+	while (!task1Flag)
+	{
+		Vector3 busCoord = ENTITY::GET_ENTITY_COORDS(bus, true);
+		if (SYSTEM::VDIST(busCoord.x, busCoord.y, busCoord.z, busStopLoc.x, busStopLoc.y, busStopLoc.z) < 8.0 && VEHICLE::IS_VEHICLE_STOPPED(bus))
+		{
+			WAIT(500);
+			task1Flag = true;
+		}
+		WAIT(10);
+	}
+
+	// Task 2: invisible driver gets off bus and opens door
+	AI::TASK_OPEN_VEHICLE_DOOR(driver, bus, -1, 1, 1.0);
+	WAIT(2000);
+	// Task 2: ending condition
+
+	// Task 3: ped gets off bus and goes to exit
+	Vector3 pedDownLoc = { float(-473.704285), DWORD(0), float(-394.312347), DWORD(0), float(34.00967), DWORD(0) };
+	AI::TASK_FOLLOW_NAV_MESH_TO_COORD(ped0, pedDownLoc.x, pedDownLoc.y, pedDownLoc.z, 1.0, -1, 0.5, 0, 0);
+	WAIT(5000);
+	AI::TASK_GO_STRAIGHT_TO_COORD(ped0, pedExitLoc.x, pedExitLoc.y, pedExitLoc.z, 1.0, -1, 250, 0.0);
+	// Task 3: ending condition
+
+	// Task 4: first ped gets on bus and others move forward
+	AI::TASK_ENTER_VEHICLE(ped1, bus, 8000, 3, 1.0, 1, 0);
+	AI::TASK_GO_STRAIGHT_TO_COORD(ped2, ped1Loc.x, ped1Loc.y, ped1Loc.z, 1.0, -1, 360, 0.0);
+	WAIT(100);
+	AI::TASK_GO_STRAIGHT_TO_COORD(ped3, ped2Loc.x, ped2Loc.y, ped2Loc.z, 1.0, -1, 360, 0.0);
+	WAIT(8000);
+	// Task 4: ending condition
+
+	// Task 5: second ped gets on bus and others move forward
+	AI::TASK_ENTER_VEHICLE(ped2, bus, 8000, 1, 1.0, 1, 0);
+	WAIT(100);
+	AI::TASK_GO_STRAIGHT_TO_COORD(ped3, ped1Loc.x, ped1Loc.y, ped1Loc.z, 1.0, -1, 360, 0.0);
+	WAIT(8000);
+	// Task 5: ending condition
+
+	// Task 6: third ped gets on bus
+	AI::TASK_ENTER_VEHICLE(ped3, bus, 8000, 0, 1.0, 1, 0);
+	WAIT(8000);
+	// Task 6: ending condition
+
+	// Task 7: runner chases
+	AI::TASK_GO_STRAIGHT_TO_COORD(ped4, ped1Loc.x, ped1Loc.y, ped1Loc.z, 3.0, -1, 360, 0.0);
+	WAIT(2000);
+	// Task 7: ending condition
+
+	// Task 8: bus exits
+	PED::SET_PED_INTO_VEHICLE(driver, bus, -1);
+	AI::TASK_VEHICLE_DRIVE_TO_COORD(driver, bus, busExitLoc.x, busExitLoc.y, busExitLoc.z, 10.0, 1, busModel, 786603, 0.5f, true);
+	// Task 8: ending condition
+
+	DWORD waitTime = 150;
+	while (true)
+	{
+		DWORD maxTickCount = GetTickCount() + waitTime;
+		do
+		{
+			update_features();
+			WAIT(0);
+		} while (GetTickCount() < maxTickCount);
+
+		if (trainer_switch_pressed())
+		{
+			menu_beep();
+			ENTITY::SET_ENTITY_VISIBLE(playerPed, true, false);
+			VEHICLE::DELETE_VEHICLE(&bus);
+			PED::DELETE_PED(&driver);
+			PED::DELETE_PED(&ped0);
+			PED::DELETE_PED(&ped1);
+			PED::DELETE_PED(&ped2);
+			PED::DELETE_PED(&ped3);
+			PED::DELETE_PED(&ped4);
+			break;
+		}
+
+		Vector3 playerPose = ENTITY::GET_ENTITY_COORDS(playerPed, true);
+		float playerHeading = ENTITY::GET_ENTITY_HEADING(playerPed);
+		float playerSpeed = ENTITY::GET_ENTITY_SPEED(playerPed);
+		float x, y;
+		if (GRAPHICS::_WORLD3D_TO_SCREEN2D(playerPose.x, playerPose.y, playerPose.z, &x, &y))
+		{
+			char text[256];
+			//sprintf_s(text, "%f, %f, %f, %f", playerPose.x, playerPose.y, playerPose.z, playerHeading);
+			sprintf_s(text, "%f", playerSpeed);
+			UI::SET_TEXT_FONT(0);
+			UI::SET_TEXT_SCALE(0.2, 0.2);
+			UI::SET_TEXT_COLOUR(255, 0, 0, 255);
+			UI::SET_TEXT_WRAP(0.0, 1.0);
+			UI::SET_TEXT_CENTRE(0);
+			UI::SET_TEXT_DROPSHADOW(0, 0, 0, 0, 0);
+			UI::SET_TEXT_EDGE(1, 0, 0, 0, 205);
+			UI::_SET_TEXT_ENTRY("STRING");
+			UI::_ADD_TEXT_COMPONENT_STRING(text);
+			UI::_DRAW_TEXT(x, y);
+		}
+
+		waitTime = 10;
+	}
 }
 
 void process_social_taxi()
 {}
 
 void process_social_meet()
-{}
+{
+	Player player = PLAYER::PLAYER_ID();
+	Ped playerPed = PLAYER::PLAYER_PED_ID();
+	if (!ENTITY::DOES_ENTITY_EXIST(playerPed) || !PLAYER::IS_PLAYER_CONTROL_ON(player))
+	{
+		const char* info = "player not available!\n";
+		return;
+	}
+	ENTITY::SET_ENTITY_VISIBLE(playerPed, false, false);
+
+	Vector3 ped1StartLoc = { float(-520.598511), DWORD(0), float(-393.291931), DWORD(0), float(35.079056), DWORD(0) };
+	Vector3 ped1EndLoc = { float(-522.157776), DWORD(0), float(-449.618378), DWORD(0), float(34.255096), DWORD(0) };
+	Vector3 ped2StartLoc = { float(-518.434021), DWORD(0), float(-448.703003), DWORD(0), float(34.143478), DWORD(0) };
+	Vector3 ped2EndLoc = { float(-517.130493), DWORD(0), float(-393.762299), DWORD(0), float(34.959282), DWORD(0) };
+
+	char* animDict = "missheist_agency2aig_3";
+	char* animName = "chat_a_worker2";
+	STREAMING::REQUEST_ANIM_DICT(animDict);
+	while (!STREAMING::HAS_ANIM_DICT_LOADED(animDict))	WAIT(0);
+
+	TIME::SET_CLOCK_TIME(10, 0, 0);
+
+	GAMEPLAY::CLEAR_AREA_OF_PEDS(ped1StartLoc.x, ped1StartLoc.y, ped1StartLoc.z, 1e7, false);
+	GAMEPLAY::CLEAR_AREA_OF_VEHICLES(ped1EndLoc.x, ped1EndLoc.y, ped1EndLoc.z, 1e7, false, false, false, false, false);
+
+	Ped ped1 = process_social_create_random_ped(ped1StartLoc);
+	Ped ped2 = process_social_create_random_ped(ped2StartLoc);
+
+	// Task 1: two peds go to respective goals
+	AI::TASK_GO_STRAIGHT_TO_COORD(ped1, ped1EndLoc.x, ped1EndLoc.y, ped1EndLoc.z, 1.0, -1, 180, 0.0);
+	AI::TASK_GO_STRAIGHT_TO_COORD(ped2, ped2EndLoc.x, ped2EndLoc.y, ped2EndLoc.z, 1.0, -1, 360, 0.0);
+	// Task 1: ending condition
+	bool task1Flag = false;
+	while (!task1Flag)
+	{
+		Vector3 ped1Pose = ENTITY::GET_ENTITY_COORDS(ped1, true);
+		Vector3 ped2Pose = ENTITY::GET_ENTITY_COORDS(ped2, true);
+		if (SYSTEM::VDIST(ped1Pose.x, ped1Pose.y, ped1Pose.z, ped2Pose.x, ped2Pose.y, ped2Pose.z) < 5.0)
+			task1Flag = true;
+		WAIT(10);
+	}
+
+	// Task 2: two peds turn to each other
+	AI::TASK_TURN_PED_TO_FACE_ENTITY(ped1, ped2, 5000);
+	AI::TASK_TURN_PED_TO_FACE_ENTITY(ped2, ped1, 5000);
+	WAIT(100);
+	// Task 2: ending condition
+
+	// Task 3: two peds chat animation
+	AI::TASK_PLAY_ANIM(ped1, animDict, animName, 8.0, 0.0, -1, 52, 0, 0, 0, 0);
+	WAIT(8000);
+	// Task 3: ending condition
+
+	// Task 4: two peds turn to goals
+	AI::TASK_TURN_PED_TO_FACE_COORD(ped1, ped1EndLoc.x, ped1EndLoc.y, ped1EndLoc.z, 1000);
+	AI::TASK_GO_STRAIGHT_TO_COORD(ped1, ped1EndLoc.x, ped1EndLoc.y, ped1EndLoc.z, 1.0, -1, 180, 0.0);
+	WAIT(100);
+	AI::TASK_TURN_PED_TO_FACE_COORD(ped2, ped2EndLoc.x, ped2EndLoc.y, ped2EndLoc.z, 1000);
+	AI::TASK_GO_STRAIGHT_TO_COORD(ped2, ped2EndLoc.x, ped2EndLoc.y, ped2EndLoc.z, 1.0, -1, 360, 0.0);
+	// Task 4: ending condition
+
+	DWORD waitTime = 150;
+	while (true)
+	{
+		DWORD maxTickCount = GetTickCount() + waitTime;
+		do
+		{
+			update_features();
+			WAIT(0);
+		} while (GetTickCount() < maxTickCount);
+
+		if (trainer_switch_pressed())
+		{
+			menu_beep();
+			ENTITY::SET_ENTITY_VISIBLE(playerPed, true, false);
+			PED::DELETE_PED(&ped1);
+			PED::DELETE_PED(&ped2);
+			break;
+		}
+
+		Vector3 playerPose = ENTITY::GET_ENTITY_COORDS(playerPed, true);
+		float playerHeading = ENTITY::GET_ENTITY_HEADING(playerPed);
+		float x, y;
+		if (GRAPHICS::_WORLD3D_TO_SCREEN2D(playerPose.x, playerPose.y, playerPose.z, &x, &y))
+		{
+			char text[256];
+			sprintf_s(text, "%f, %f, %f, %f", playerPose.x, playerPose.y, playerPose.z, playerHeading);
+			UI::SET_TEXT_FONT(0);
+			UI::SET_TEXT_SCALE(0.2, 0.2);
+			UI::SET_TEXT_COLOUR(255, 0, 0, 255);
+			UI::SET_TEXT_WRAP(0.0, 1.0);
+			UI::SET_TEXT_CENTRE(0);
+			UI::SET_TEXT_DROPSHADOW(0, 0, 0, 0, 0);
+			UI::SET_TEXT_EDGE(1, 0, 0, 0, 205);
+			UI::_SET_TEXT_ENTRY("STRING");
+			UI::_ADD_TEXT_COMPONENT_STRING(text);
+			UI::_DRAW_TEXT(x, y);
+		}
+
+		waitTime = 10;
+	}
+}
 
 void process_social_cowalk()
-{}
+{
+	Player player = PLAYER::PLAYER_ID();
+	Ped playerPed = PLAYER::PLAYER_PED_ID();
+	if (!ENTITY::DOES_ENTITY_EXIST(playerPed) || !PLAYER::IS_PLAYER_CONTROL_ON(player))
+	{
+		const char* info = "player not available!\n";
+		return;
+	}
+	ENTITY::SET_ENTITY_VISIBLE(playerPed, false, false);
+
+	Vector3 pedStartLoc = { float(-531.114868), DWORD(0), float(-389.217224), DWORD(0), float(35.098427), DWORD(0) };
+	Vector3 pedEndLoc = { float(-570.122681), DWORD(0), float(-389.039337), DWORD(0), float(35.001274), DWORD(0) };
+
+	TIME::SET_CLOCK_TIME(10, 0, 0);
+
+	GAMEPLAY::CLEAR_AREA_OF_PEDS(pedStartLoc.x, pedStartLoc.y, pedStartLoc.z, 1e7, false);
+	GAMEPLAY::CLEAR_AREA_OF_VEHICLES(pedStartLoc.x, pedStartLoc.y, pedStartLoc.z, 1e7, false, false, false, false, false);
+
+	Ped ped1 = process_social_create_random_ped(pedStartLoc);
+	Hash ped1Model = ENTITY::GET_ENTITY_MODEL(ped1);
+	Ped ped2 = PED::CREATE_PED(0, ped1Model, pedStartLoc.x, pedStartLoc.y, pedStartLoc.z, 360, false, true);
+
+	// Task 1: peds go to goals and look at each other
+	AI::TASK_GO_STRAIGHT_TO_COORD(ped1, pedEndLoc.x, pedEndLoc.y, pedEndLoc.z, 1.0, -1, 180, 0.0);
+	AI::TASK_GO_STRAIGHT_TO_COORD(ped2, pedEndLoc.x, pedEndLoc.y, pedEndLoc.z, 1.0, -1, 180, 0.0);
+	WAIT(1000);
+	AI::TASK_LOOK_AT_ENTITY(ped1, ped2, -1, 2048, 3);
+	AI::TASK_LOOK_AT_ENTITY(ped2, ped1, -1, 2048, 3);
+	// Task 1: ending condition
+
+	DWORD waitTime = 150;
+	while (true)
+	{
+		DWORD maxTickCount = GetTickCount() + waitTime;
+		do
+		{
+			update_features();
+			WAIT(0);
+		} while (GetTickCount() < maxTickCount);
+
+		if (trainer_switch_pressed())
+		{
+			menu_beep();
+			ENTITY::SET_ENTITY_VISIBLE(playerPed, true, false);
+			PED::DELETE_PED(&ped1);
+			PED::DELETE_PED(&ped2);
+			break;
+		}
+
+		Vector3 playerPose = ENTITY::GET_ENTITY_COORDS(playerPed, true);
+		float playerHeading = ENTITY::GET_ENTITY_HEADING(playerPed);
+		float x, y;
+		if (GRAPHICS::_WORLD3D_TO_SCREEN2D(playerPose.x, playerPose.y, playerPose.z, &x, &y))
+		{
+			char text[256];
+			sprintf_s(text, "%f, %f, %f, %f", playerPose.x, playerPose.y, playerPose.z, playerHeading);
+			UI::SET_TEXT_FONT(0);
+			UI::SET_TEXT_SCALE(0.2, 0.2);
+			UI::SET_TEXT_COLOUR(255, 0, 0, 255);
+			UI::SET_TEXT_WRAP(0.0, 1.0);
+			UI::SET_TEXT_CENTRE(0);
+			UI::SET_TEXT_DROPSHADOW(0, 0, 0, 0, 0);
+			UI::SET_TEXT_EDGE(1, 0, 0, 0, 205);
+			UI::_SET_TEXT_ENTRY("STRING");
+			UI::_ADD_TEXT_COMPONENT_STRING(text);
+			UI::_DRAW_TEXT(x, y);
+		}
+
+		waitTime = 10;
+	}
+}
 
 void process_social_generation()
-{}
+{
+}
 
 int activeLineIndexSocial = 0;
 
@@ -1927,9 +2299,9 @@ void process_social_menu()
 		do
 		{
 			draw_menu_line(caption, lineWidth, 15.0, 18.0, 0.0, 5.0, false, true);
-			for(int i=0; i<lineCount; i++)
-				if(i != activeLineIndexSocial)
-					draw_menu_line(lineCaption[i], lineWidth, 9.0, 60.0+i*36.0, 0.0, 9.0, false, false);
+			for (int i = 0; i<lineCount; i++)
+				if (i != activeLineIndexSocial)
+					draw_menu_line(lineCaption[i], lineWidth, 9.0, 60.0 + i * 36.0, 0.0, 9.0, false, false);
 			draw_menu_line(lineCaption[activeLineIndexSocial], lineWidth + 1.0, 11.0, 56.0 + activeLineIndexSocial * 36.0, 0.0, 7.0, true, false);
 			update_features();
 			WAIT(0);
