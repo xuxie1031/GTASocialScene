@@ -2092,7 +2092,69 @@ void process_social_bus()
 }
 
 void process_social_taxi()
-{}
+{
+	Player player = PLAYER::PLAYER_ID();
+	Ped playerPed = PLAYER::PLAYER_PED_ID();
+	if (!ENTITY::DOES_ENTITY_EXIST(playerPed) || !PLAYER::IS_PLAYER_CONTROL_ON(player))
+	{
+		const char* info = "player not available!\n";
+		return;
+	}
+
+	Vector3 pedStartLoc = { float(-533.169678), DWORD(0), float(-388.105652), DWORD(0), float(35.10313), DWORD(0) };
+	Vector3 pedEndLoc = { float(-484.712158), DWORD(0), float(-351.200317), DWORD(0), float(34.500885), DWORD(0) };
+
+	GAMEPLAY::CLEAR_AREA_OF_PEDS(pedStartLoc.x, pedStartLoc.y, pedStartLoc.z, 1e7, false);
+	GAMEPLAY::CLEAR_AREA_OF_VEHICLES(pedEndLoc.x, pedEndLoc.y, pedEndLoc.z, 1e7, false, false, false, false, false);
+
+	Ped ped = process_social_create_random_ped(pedStartLoc);
+
+	//AI::TASK_GO_TO_COORD_ANY_MEANS(ped, pedEndLoc.x, pedEndLoc.y, pedEndLoc.z, 1.0, 0, false, 786603, 0);
+	//AI::TASK_GO_STRAIGHT_TO_COORD(ped, pedEndLoc.x, pedEndLoc.y, pedEndLoc.z, 1.0, -1, 0, 0.0);
+	//AI::TASK_FOLLOW_NAV_MESH_TO_COORD(ped, pedEndLoc.x, pedEndLoc.y, pedEndLoc.z, 1.0, -1, 0.5, true, 0);
+	//AI::TASK_WANDER_IN_AREA(ped, pedEndLoc.x, pedEndLoc.y, pedEndLoc.z, 3.0, 0, 0);
+	AI::TASK_WANDER_STANDARD(ped, 10.0, 10);
+
+	DWORD waitTime = 150;
+	while (true)
+	{
+		DWORD maxTickCount = GetTickCount() + waitTime;
+		do
+		{
+			update_features();
+			WAIT(0);
+		} while (GetTickCount() < maxTickCount);
+
+		if (trainer_switch_pressed())
+		{
+			menu_beep();
+			ENTITY::SET_ENTITY_VISIBLE(playerPed, true, false);
+			PED::DELETE_PED(&ped);
+			break;
+		}
+
+		Vector3 playerPose = ENTITY::GET_ENTITY_COORDS(playerPed, true);
+		float playerHeading = ENTITY::GET_ENTITY_HEADING(playerPed);
+		float x, y;
+		if (GRAPHICS::_WORLD3D_TO_SCREEN2D(playerPose.x, playerPose.y, playerPose.z, &x, &y))
+		{
+			char text[256];
+			sprintf_s(text, "%f, %f, %f, %f", playerPose.x, playerPose.y, playerPose.z, playerHeading);
+			UI::SET_TEXT_FONT(0);
+			UI::SET_TEXT_SCALE(0.2, 0.2);
+			UI::SET_TEXT_COLOUR(255, 0, 0, 255);
+			UI::SET_TEXT_WRAP(0.0, 1.0);
+			UI::SET_TEXT_CENTRE(0);
+			UI::SET_TEXT_DROPSHADOW(0, 0, 0, 0, 0);
+			UI::SET_TEXT_EDGE(1, 0, 0, 0, 205);
+			UI::_SET_TEXT_ENTRY("STRING");
+			UI::_ADD_TEXT_COMPONENT_STRING(text);
+			UI::_DRAW_TEXT(x, y);
+		}
+
+		waitTime = 10;
+	}
+}
 
 void process_social_meet()
 {
@@ -2273,6 +2335,88 @@ void process_social_cowalk()
 
 void process_social_generation()
 {
+	Player player = PLAYER::PLAYER_ID();
+	Ped playerPed = PLAYER::PLAYER_PED_ID();
+	if (!ENTITY::DOES_ENTITY_EXIST(playerPed) || !PLAYER::IS_PLAYER_CONTROL_ON(player))
+	{
+		const char* info = "player not available!\n";
+		return;
+	}
+	ENTITY::SET_ENTITY_VISIBLE(playerPed, false, false);
+
+	// create participants
+	Hash busModel = GAMEPLAY::GET_HASH_KEY("BUS");
+	if (STREAMING::IS_MODEL_IN_CDIMAGE(busModel) && STREAMING::IS_MODEL_VALID(busModel))
+	{
+		STREAMING::REQUEST_MODEL(busModel);
+		while (!STREAMING::HAS_MODEL_LOADED(busModel))	WAIT(0);
+		WAIT(100);
+	}
+
+	Vector3 busExitLoc = { float(-575.612488), DWORD(0), float(-390.302094), DWORD(0), float(34.959949), DWORD(0) };
+	Vector3 busStartLoc = { float(-580.12085), DWORD(0), float(-383.599579), DWORD(0), float(34.861534), DWORD(0) };
+	float busHeading = 290.008911;
+
+	TIME::SET_CLOCK_TIME(10, 0, 0);
+
+	GAMEPLAY::CLEAR_AREA_OF_PEDS(busStartLoc.x, busStartLoc.y, busStartLoc.z, 1e7, false);
+	GAMEPLAY::CLEAR_AREA_OF_VEHICLES(busStartLoc.x, busStartLoc.y, busStartLoc.z, 1e7, false, false, false, false, false);
+
+	Vehicle bus = VEHICLE::CREATE_VEHICLE(busModel, busStartLoc.x, busStartLoc.y, busStartLoc.z, busHeading, false, true);
+
+	Ped ped1 = process_social_create_random_ped(busExitLoc);
+	PED::SET_PED_INTO_VEHICLE(ped1, bus, 0);
+	Ped ped2 = process_social_create_random_ped(busExitLoc);
+	PED::SET_PED_INTO_VEHICLE(ped2, bus, 1);
+	Ped ped3 = process_social_create_random_ped(busExitLoc);
+	PED::SET_PED_INTO_VEHICLE(ped3, bus, 3);
+
+	AI::TASK_FOLLOW_NAV_MESH_TO_COORD(ped2, busExitLoc.x, busExitLoc.y, busExitLoc.z, 1.0, -1, 0.5, false, 0);
+	AI::TASK_FOLLOW_NAV_MESH_TO_COORD(ped1, busExitLoc.x, busExitLoc.y, busExitLoc.z, 1.0, -1, 0.5, false, 0);
+	AI::TASK_FOLLOW_NAV_MESH_TO_COORD(ped3, busExitLoc.x, busExitLoc.y, busExitLoc.z, 1.0, -1, 0.5, false, 0);
+
+	DWORD waitTime = 150;
+	while (true)
+	{
+		DWORD maxTickCount = GetTickCount() + waitTime;
+		do
+		{
+			update_features();
+			WAIT(0);
+		} while (GetTickCount() < maxTickCount);
+
+		if (trainer_switch_pressed())
+		{
+			menu_beep();
+			ENTITY::SET_ENTITY_VISIBLE(playerPed, true, false);
+			VEHICLE::DELETE_VEHICLE(&bus);
+			PED::DELETE_PED(&ped1);
+			PED::DELETE_PED(&ped2);
+			PED::DELETE_PED(&ped3);
+			break;
+		}
+
+		//Vector3 playerPose = ENTITY::GET_ENTITY_COORDS(playerPed, true);
+		//float playerHeading = ENTITY::GET_ENTITY_HEADING(playerPed);
+		//float x, y;
+		//if (GRAPHICS::_WORLD3D_TO_SCREEN2D(playerPose.x, playerPose.y, playerPose.z, &x, &y))
+		//{
+		//	char text[256];
+		//	sprintf_s(text, "%f, %f, %f, %f", playerPose.x, playerPose.y, playerPose.z, playerHeading);
+		//	UI::SET_TEXT_FONT(0);
+		//	UI::SET_TEXT_SCALE(0.2, 0.2);
+		//	UI::SET_TEXT_COLOUR(255, 0, 0, 255);
+		//	UI::SET_TEXT_WRAP(0.0, 1.0);
+		//	UI::SET_TEXT_CENTRE(0);
+		//	UI::SET_TEXT_DROPSHADOW(0, 0, 0, 0, 0);
+		//	UI::SET_TEXT_EDGE(1, 0, 0, 0, 205);
+		//	UI::_SET_TEXT_ENTRY("STRING");
+		//	UI::_ADD_TEXT_COMPONENT_STRING(text);
+		//	UI::_DRAW_TEXT(x, y);
+		//}
+
+		waitTime = 10;
+	}
 }
 
 int activeLineIndexSocial = 0;

@@ -36,7 +36,7 @@ typedef int Sphere;
 typedef int ScrHandle;
 
 #pragma pack(push, 1)
-typedef struct
+typedef struct Vector3
 {
 	float x;
 	DWORD _paddingx;
@@ -44,5 +44,10 @@ typedef struct
 	DWORD _paddingy;
 	float z;
 	DWORD _paddingz;
-} Vector3;
+
+	bool operator < (const Vector3& Vec) const
+	{
+		return (this->x < Vec.x);
+	}
+};
 #pragma pack(pop)
