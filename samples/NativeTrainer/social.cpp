@@ -182,7 +182,7 @@ bool SocialBus::EventThreeEnd()
 }
 
 /* Social Passenger */
-SocialPassenger::SocialPassenger(SocialBus* socialBus, std::map<Vector3, Vector3> &offBusPtMap, std::vector<Vector3> &pedAccessPts, std::vector<Vector3> &streetPivots, Vector3 centerPt):
+SocialPassenger::SocialPassenger(SocialBus* socialBus, std::map<Vector3, Vector3> &offBusPtMap, std::vector<Vector3> &pedAccessPts, std::vector<Vector3> &streetPivots, Vector3 centerPt) :
 	socialBus(socialBus), centerPt(centerPt)
 {
 	PropertySample(pedAccessPts);
@@ -311,6 +311,197 @@ bool SocialPassenger::EventThreeEnd()
 	}
 
 	if (GetTickCount() - currentTickCount > durationMax)
+	{
+		stateIndicator = 0;
+		return true;
+	}
+
+	return false;
+}
+
+/* Social Wait Ped */
+SocialWaitPed::SocialWaitPed(std::map<Vector3, WR*> &Vec2WRPtrMap, std::vector<Vector3> &pedStartPts, std::vector<Vector3> &streetPivots, Vector3 centerPt) :
+	centerPt(centerPt)
+{
+	PropertySample(pedStartPts);
+	waitRegion = Vec2WRPtrMap[startPt];
+	this->streetPivots = streetPivots;
+	currentPtIdx = -1;
+
+	// create wait ped
+	Hash waitPedModel = GAMEPLAY::GET_HASH_KEY("player_zero");
+	waitPed = PED::CREATE_PED(0, waitPedModel, startPt.x, startPt.y, startPt.z, 0, false, true);
+	socialBus = NULL;
+
+	EventOneStart();
+}
+
+SocialWaitPed::~SocialWaitPed()
+{
+	PED::DELETE_PED(&waitPed);
+}
+
+void SocialWaitPed::PropertySample(std::vector<Vector3> &pedStartPts)
+{
+	std::random_device rd;
+
+	std::mt19937 genPedStartPtsIdx(rd());
+	std::uniform_int_distribution<int> distributionPedStartPtsIdx(0, pedStartPts.size() - 1);
+	startPt = pedStartPts[distributionPedStartPtsIdx(genPedStartPtsIdx)];
+}
+
+UINT SocialWaitPed::GetStateIndicator() const
+{
+	return stateIndicator;
+}
+
+void SocialWaitPed::GetAvailableSocialBus(std::vector<SocialBus*> socialBusArr)
+{
+	Vector3 waitPedPose = ENTITY::GET_ENTITY_COORDS(waitPed, true);
+	for (int i = 0; i < socialBusArr.size(); i++)
+	{
+		Hash busModel = GAMEPLAY::GET_HASH_KEY("BUS");
+		Vehicle closeBus = VEHICLE::GET_CLOSEST_VEHICLE(waitPedPose.x, waitPedPose.y, waitPedPose.z, 10.0, busModel, 0); // need to test validation
+		if (socialBusArr[i]->GetEntity() == closeBus)
+		{
+			socialBus = socialBusArr[i];
+			return;
+		}
+	}
+
+	socialBus = NULL;
+}
+
+bool SocialWaitPed::TaskScheduler()
+{
+	bool transit = false;
+
+	switch (stateIndicator)
+	{
+	case 1:
+	{
+		Vector3 waitPedPose = ENTITY::GET_ENTITY_COORDS(waitPed, true);
+		Vehicle closeBus = VEHICLE::GET_CLOSEST_VEHICLE(waitRegion->waitPts[0].coord.x, waitRegion->waitPts[0].coord.y, waitRegion->waitPts[0].coord.z, 10.0, GAMEPLAY::GET_HASH_KEY("BUS"), 0);
+		
+		transit = EventOneEnd();
+		break;
+	}
+	case 2:
+	{
+		transit = EventTwoEnd();
+		break;
+	}
+	case 3:
+	{
+		transit = EventThreeEnd();
+		break;
+	}
+	default:
+		break;
+	}
+
+	return transit;
+}
+
+void SocialWaitPed::EventOneStart()
+{
+	AI::TASK_GO_STRAIGHT_TO_COORD(waitPed, waitRegion->offBusPt.x, waitRegion->offBusPt.y, waitRegion->offBusPt.z, 1.0, -1, waitRegion->waitHeading, 0.0);
+	currentTickCount = GetTickCount();
+	stateIndicator = 1;
+}
+
+bool SocialWaitPed::EventOneEnd()
+{
+	Vector3 waitPedPose = ENTITY::GET_ENTITY_COORDS(waitPed, true);
+	if (SYSTEM::VDIST(waitPedPose.x, waitPedPose.y, waitPedPose.z, waitRegion->offBusPt.x, waitRegion->offBusPt.y, waitRegion->offBusPt.z) < closeRegionDist)
+	{
+		EventTwoStart();
+		return true;
+	}
+
+	if (GetTickCount() - currentTickCount > durationMax)
+	{
+		stateIndicator = 0;
+		return true;
+	}
+
+	return false;
+}
+
+void SocialWaitPed::EventTwoStart()
+{
+	int forwardIdx = waitRegion->getForwardIdx();
+	currentPtIdx = forwardIdx;
+	waitRegion->waitPts[currentPtIdx].occupy = true;
+	AI::TASK_GO_STRAIGHT_TO_COORD(waitPed, waitRegion->waitPts[currentPtIdx].coord.x, waitRegion->waitPts[currentPtIdx].coord.y, waitRegion->waitPts[currentPtIdx].coord.z, 1.0, -1, waitRegion->waitHeading, 0.0);
+	currentTickCount = GetTickCount();
+	stateIndicator = 2;
+}
+
+bool SocialWaitPed::EventTwoEnd()
+{
+	if (currentPtIdx == 0)
+	{
+		Vector3 waitPedPose = ENTITY::GET_ENTITY_COORDS(waitPed, true);
+		if (SYSTEM::VDIST(waitPedPose.x, waitPedPose.y, waitPedPose.z, waitRegion->waitPts[0].coord.x, waitRegion->waitPts[0].coord.y, waitRegion->waitPts[0].coord.z) < closeDist && socialBus && VEHICLE::IS_VEHICLE_STOPPED(socialBus->GetEntity()))
+		{
+			int seatID = socialBus->GetAvailableSeatID();
+			if (seatID >= 0)
+			{
+				waitRegion->waitPts[0].occupy = false;
+				EventThreeStart(seatID);
+				return true;
+			}
+		}
+	}
+
+	if (GetTickCount() - currentTickCount > waitDurationMax)
+	{
+		stateIndicator = 0;
+		return true;
+	}
+
+	return false;
+}
+
+void SocialWaitPed::EventThreeStart(int seatID)
+{
+	AI::TASK_ENTER_VEHICLE(waitPed, socialBus->GetEntity(), -1, seatID, 1.0, 1, 0);
+	currentTickCount = GetTickCount();
+	stateIndicator = 3;
+}
+
+bool SocialWaitPed::EventThreeEnd()
+{
+	if (PED::IS_PED_IN_VEHICLE(waitPed, socialBus->GetEntity(), false))
+	{
+		EventFourStart();
+		return true;
+	}
+
+	if (GetTickCount() - currentTickCount > durationMax)
+	{
+		stateIndicator = 0;
+		return true;
+	}
+
+	return false;
+}
+
+void SocialWaitPed::EventFourStart()
+{
+	stateIndicator = 4;
+}
+
+bool SocialWaitPed::EventFourEnd()
+{
+	if(!socialBus->GetEntity())		// bus entity not exist anymore
+	{
+		stateIndicator = 0;
+		return true;
+	}
+
+	if (GetTickCount() - currentTickCount > busDurationMax)
 	{
 		stateIndicator = 0;
 		return true;

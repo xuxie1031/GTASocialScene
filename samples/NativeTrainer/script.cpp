@@ -2342,40 +2342,16 @@ void process_social_generation()
 		const char* info = "player not available!\n";
 		return;
 	}
-	ENTITY::SET_ENTITY_VISIBLE(playerPed, false, false);
 
-	// create participants
-	Hash busModel = GAMEPLAY::GET_HASH_KEY("BUS");
-	if (STREAMING::IS_MODEL_IN_CDIMAGE(busModel) && STREAMING::IS_MODEL_VALID(busModel))
-	{
-		STREAMING::REQUEST_MODEL(busModel);
-		while (!STREAMING::HAS_MODEL_LOADED(busModel))	WAIT(0);
-		WAIT(100);
-	}
+	if (GetFileAttributes("social_traj_data") == INVALID_FILE_ATTRIBUTES)
+		CreateDirectory("social_traj_data", NULL);
 
-	Vector3 busExitLoc = { float(-575.612488), DWORD(0), float(-390.302094), DWORD(0), float(34.959949), DWORD(0) };
-	Vector3 busStartLoc = { float(-580.12085), DWORD(0), float(-383.599579), DWORD(0), float(34.861534), DWORD(0) };
-	float busHeading = 290.008911;
+	DWORD dataRecordTimeSeg = 100, currentTickCount = GetTickCount();
+	const int arrSize = 1024;
+	Ped peds[arrSize];
+	Vehicle vehicles[arrSize];
 
-	TIME::SET_CLOCK_TIME(10, 0, 0);
-
-	GAMEPLAY::CLEAR_AREA_OF_PEDS(busStartLoc.x, busStartLoc.y, busStartLoc.z, 1e7, false);
-	GAMEPLAY::CLEAR_AREA_OF_VEHICLES(busStartLoc.x, busStartLoc.y, busStartLoc.z, 1e7, false, false, false, false, false);
-
-	Vehicle bus = VEHICLE::CREATE_VEHICLE(busModel, busStartLoc.x, busStartLoc.y, busStartLoc.z, busHeading, false, true);
-
-	Ped ped1 = process_social_create_random_ped(busExitLoc);
-	PED::SET_PED_INTO_VEHICLE(ped1, bus, 0);
-	Ped ped2 = process_social_create_random_ped(busExitLoc);
-	PED::SET_PED_INTO_VEHICLE(ped2, bus, 1);
-	Ped ped3 = process_social_create_random_ped(busExitLoc);
-	PED::SET_PED_INTO_VEHICLE(ped3, bus, 3);
-
-	AI::TASK_FOLLOW_NAV_MESH_TO_COORD(ped2, busExitLoc.x, busExitLoc.y, busExitLoc.z, 1.0, -1, 0.5, false, 0);
-	AI::TASK_FOLLOW_NAV_MESH_TO_COORD(ped1, busExitLoc.x, busExitLoc.y, busExitLoc.z, 1.0, -1, 0.5, false, 0);
-	AI::TASK_FOLLOW_NAV_MESH_TO_COORD(ped3, busExitLoc.x, busExitLoc.y, busExitLoc.z, 1.0, -1, 0.5, false, 0);
-
-	DWORD waitTime = 150;
+	DWORD waitTime = 10;
 	while (true)
 	{
 		DWORD maxTickCount = GetTickCount() + waitTime;
@@ -2389,30 +2365,61 @@ void process_social_generation()
 		{
 			menu_beep();
 			ENTITY::SET_ENTITY_VISIBLE(playerPed, true, false);
-			VEHICLE::DELETE_VEHICLE(&bus);
-			PED::DELETE_PED(&ped1);
-			PED::DELETE_PED(&ped2);
-			PED::DELETE_PED(&ped3);
 			break;
 		}
 
-		//Vector3 playerPose = ENTITY::GET_ENTITY_COORDS(playerPed, true);
-		//float playerHeading = ENTITY::GET_ENTITY_HEADING(playerPed);
-		//float x, y;
-		//if (GRAPHICS::_WORLD3D_TO_SCREEN2D(playerPose.x, playerPose.y, playerPose.z, &x, &y))
+		Vector3 playerPose = ENTITY::GET_ENTITY_COORDS(playerPed, true);
+		float playerHeading = ENTITY::GET_ENTITY_HEADING(playerPed);
+		float x, y;
+		if (GRAPHICS::_WORLD3D_TO_SCREEN2D(playerPose.x, playerPose.y, playerPose.z, &x, &y))
+		{
+			char text[256];
+			sprintf_s(text, "%f, %f, %f, %f", playerPose.x, playerPose.y, playerPose.z, playerHeading);
+			UI::SET_TEXT_FONT(0);
+			UI::SET_TEXT_SCALE(0.2, 0.2);
+			UI::SET_TEXT_COLOUR(255, 0, 0, 255);
+			UI::SET_TEXT_WRAP(0.0, 1.0);
+			UI::SET_TEXT_CENTRE(0);
+			UI::SET_TEXT_DROPSHADOW(0, 0, 0, 0, 0);
+			UI::SET_TEXT_EDGE(1, 0, 0, 0, 205);
+			UI::_SET_TEXT_ENTRY("STRING");
+			UI::_ADD_TEXT_COMPONENT_STRING(text);
+			UI::_DRAW_TEXT(x, y);
+		}
+
+		//if (GetTickCount() - currentTickCount > dataRecordTimeSeg)
 		//{
-		//	char text[256];
-		//	sprintf_s(text, "%f, %f, %f, %f", playerPose.x, playerPose.y, playerPose.z, playerHeading);
-		//	UI::SET_TEXT_FONT(0);
-		//	UI::SET_TEXT_SCALE(0.2, 0.2);
-		//	UI::SET_TEXT_COLOUR(255, 0, 0, 255);
-		//	UI::SET_TEXT_WRAP(0.0, 1.0);
-		//	UI::SET_TEXT_CENTRE(0);
-		//	UI::SET_TEXT_DROPSHADOW(0, 0, 0, 0, 0);
-		//	UI::SET_TEXT_EDGE(1, 0, 0, 0, 205);
-		//	UI::_SET_TEXT_ENTRY("STRING");
-		//	UI::_ADD_TEXT_COMPONENT_STRING(text);
-		//	UI::_DRAW_TEXT(x, y);
+		//	int countPeds = worldGetAllPeds(peds, arrSize);
+		//	int countVehicles = worldGetAllVehicles(vehicles, arrSize);
+
+		//	SYSTEMTIME time;
+		//	GetSystemTime(&time);
+		//	char filename[4096];
+		//	sprintf_s(filename, "social_traj_data/frame_Y%luM%luD%luh%lum%lus%lums%lu", time.wYear, time.wMonth, time.wDay, time.wHour, time.wMinute, time.wSecond, time.wMilliseconds);
+		//	FILE* fid = fopen(filename, "w");
+
+		//	Vector3 playerPose = ENTITY::GET_ENTITY_COORDS(playerPed, true);
+		//	for (int i = 0; i < countPeds; i++)
+		//	{
+		//		if (peds[i] != playerPed)
+		//		{
+		//			Vector3 pedPose = ENTITY::GET_ENTITY_COORDS(peds[i], true);
+		//			float pedHeading = ENTITY::GET_ENTITY_HEADING(peds[i]);
+		//			if(SYSTEM::VDIST(playerPose.x, playerPose.y, playerPose.z, pedPose.x, pedPose.y, pedPose.z) < 1000.0)
+		//				fprintf(fid, "ped %ld %f %f %f %f\n", peds[i], pedPose.x, pedPose.y, pedPose.z, pedHeading);
+		//		}
+		//	}
+
+		//	for (int i = 0; i < countVehicles; i++)
+		//	{
+		//		Vector3 vehiclePose = ENTITY::GET_ENTITY_COORDS(vehicles[i], true);
+		//		float vehicleHeading = ENTITY::GET_ENTITY_HEADING(vehicles[i]);
+		//		if(SYSTEM::VDIST(playerPose.x, playerPose.y, playerPose.z, vehiclePose.x, vehiclePose.y, vehiclePose.z) < 1000.0)
+		//			fprintf(fid, "veh %ld %f %f %f %f\n", vehicles[i], vehiclePose.x, vehiclePose.y, vehiclePose.z, vehicleHeading);
+		//	}
+
+		//	fclose(fid);
+		//	currentTickCount = GetTickCount();
 		//}
 
 		waitTime = 10;

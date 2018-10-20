@@ -21,6 +21,19 @@ typedef struct waitpoint {
 	bool occupy;
 }WPT;
 
+typedef struct waitregion {
+	WPT waitPts[MAXWAITPEDNUM];
+	Vector3 offBusPt;
+	float waitHeading;
+
+	int getForwardIdx()
+	{
+		for (int i = 0; i < MAXWAITPEDNUM; i++)
+			if (!waitPts[i].occupy)
+				return i;
+		return -1;
+	}
+}WR;
 
 // Social Bus
 class SocialBus
@@ -106,7 +119,6 @@ private:
 	Vector3 centerPt;
 	const float busCloseDist = 8.0;
 	const float closeDist = 0.1;
-	const float exitRadius = 1000.0;
 	const DWORD busDurationMax = 600000;
 	const DWORD durationMax = 1200000;
 
@@ -116,4 +128,58 @@ private:
 	std::vector<Vector3> streetPivots;
 	SocialBus* socialBus;
 	Ped passenger;
+};
+
+// Social WaitPed
+class SocialWaitPed
+{
+public:
+	SocialWaitPed(std::map<Vector3, WR*> &Vec2WRPtrMap, std::vector<Vector3> &pedStartPts, std::vector<Vector3> &streetPivots, Vector3 centerPt);
+	~SocialWaitPed();
+
+	bool TaskScheduler();
+
+	UINT GetStateIndicator() const;
+
+	void GetAvailableSocialBus(std::vector<SocialBus*> socialBusArr);
+
+private:
+	void PropertySample(std::vector<Vector3> &pedStartPts);
+
+	// Event Utilites
+	// Event Transition
+	// (1->2), (2->3), (3->4), 0(dead)
+	// 1: wait ped goes from start point to wait region
+	void EventOneStart();
+	bool EventOneEnd();
+
+	// 2: wait ped moves to last stop point in wait region
+	void EventTwoStart();
+	bool EventTwoEnd();
+
+	// 3: wait ped gets on stopped bus
+	void EventThreeStart(int seatID);
+	bool EventThreeEnd();
+
+	// 4: wait ped in bus moves to bus end point
+	void EventFourStart();
+	bool EventFourEnd();
+
+	WR* waitRegionPtr;
+	Vector3 startPt;
+	Vector3 centerPt;
+	const float closeDist = 0.1;
+	const float closeRegionDist = 5.0;
+	const float busDurationMax = 600000;
+	const float durationMax = 1200000;
+	const float waitDurationMax = 7200000;
+
+	// Task Utilities
+	DWORD currentTickCount;
+	UINT stateIndicator;
+	std::vector<Vector3> streetPivots;
+	WR* waitRegion;
+	int currentPtIdx;
+	SocialBus* socialBus;
+	Ped waitPed;
 };
