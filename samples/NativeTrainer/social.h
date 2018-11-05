@@ -14,6 +14,8 @@ typedef struct boundingbox {
 	std::pair<float, float> xlim;
 	std::pair<float, float> ylim;
 	std::pair<float, float> zlim;
+	Vector3 bbPt1;
+	Vector3 bbPt2;
 }BBX;
 
 typedef struct waitpoint {
@@ -31,7 +33,7 @@ typedef struct waitregion {
 		for (int i = 0; i < MAXWAITPEDNUM; i++)
 			if (!waitPts[i].occupy)
 				return i;
-		return -1;
+		return MAXWAITPEDNUM;
 	}
 }WR;
 
@@ -39,7 +41,7 @@ typedef struct waitregion {
 class SocialBus
 {
 public:
-	SocialBus(std::vector<std::tuple<Vector3, Vector3, Vector3> > &busRoutePtTuples, std::map<Vector3, WPT*> &Vec2WPTPtrMap, std::map<Vector3, float> &Vec2HeadingMap, std::map<Vector3, float> &Vec2ExitRadiusMap, Vector3 centerPt);
+	SocialBus(std::vector<std::tuple<Vector3, Vector3, Vector3> > &busRoutePtTuples, std::map<Vector3, WPT*> &busStopPt2WPTPtrMap, std::map<Vector3, float> &busStartPt2HeadingMap, std::map<Vector3, float> &busExitPt2ExitRadiusMap, Vector3 centerPt);
 	~SocialBus();
 
 	bool TaskScheduler();
@@ -89,7 +91,7 @@ private:
 class SocialPassenger
 {
 public:
-	SocialPassenger(SocialBus* socialBus, std::map<Vector3, Vector3> &offBusPtMap, std::vector<Vector3> &pedAccessPts, std::vector<Vector3> &streetPivots, Vector3 centerPt);
+	SocialPassenger(SocialBus* socialBus, std::vector<Vector3> &streetPivots, Vector3 centerPt);
 	~SocialPassenger();
 
 	bool TaskScheduler();
@@ -97,8 +99,6 @@ public:
 	UINT GetStateIndicator() const;
 
 private:
-	void PropertySample(std::vector<Vector3> &pedAccessPts);
-
 	// Event Utilities
 	// Event Transition
 	// (1->2), (2->3), 0(dead)
@@ -106,16 +106,10 @@ private:
 	void EventOneStart();
 	bool EventOneEnd();
 
-	// 2: passenger gets off bus to stop area
+	// 2: passenger gets off bus and wander
 	void EventTwoStart();
 	bool EventTwoEnd();
 
-	// 3: passenger goes to end point
-	void EventThreeStart();
-	bool EventThreeEnd();
-
-	Vector3 offBusPt;
-	Vector3 endPt;
 	Vector3 centerPt;
 	const float busCloseDist = 8.0;
 	const float closeDist = 0.1;
@@ -139,9 +133,9 @@ public:
 
 	bool TaskScheduler();
 
+	Entity GetEntity() const;
 	UINT GetStateIndicator() const;
-
-	void GetAvailableSocialBus(std::vector<SocialBus*> socialBusArr);
+	void GetAvailableSocialBus(std::vector<SocialBus> &socialBusArr);
 
 private:
 	void PropertySample(std::vector<Vector3> &pedStartPts);
@@ -169,7 +163,7 @@ private:
 	Vector3 startPt;
 	Vector3 centerPt;
 	const float closeDist = 0.1;
-	const float closeRegionDist = 5.0;
+	const float closeRegionDist = 10.0;
 	const float busDurationMax = 600000;
 	const float durationMax = 1200000;
 	const float waitDurationMax = 7200000;
@@ -180,6 +174,17 @@ private:
 	std::vector<Vector3> streetPivots;
 	WR* waitRegion;
 	int currentPtIdx;
+	bool isRun;
 	SocialBus* socialBus;
 	Ped waitPed;
+};
+
+//Global Scene
+class GlobalScene {
+public:
+	GlobalScene();
+	~GlobalScene();
+
+	//Social Bus
+	void SceneAddSocialBus(SocialBus socialBus);
 };

@@ -1874,8 +1874,6 @@ void process_misc_menu()
 	}
 }
 
-Ped* waitPedsGlobal;
-
 static Vector3 process_social_sample_bbx_point(BBX bbx)
 {
 	std::random_device rd;
@@ -1911,31 +1909,6 @@ static Ped process_social_create_random_ped(Vector3 createLoc)
 	Ped ped = PED::CREATE_PED(0, pedModel, createLoc.x, createLoc.y, createLoc.z, createHeading, false, true);
 	return ped;
 }
-
-//static bool teleport_ped(Ped ped, Vector3 coords)
-//{
-//	bool groundFound = false;
-//
-//	static float groundCheckHeight[] = {
-//		100.0, 150.0, 50.0, 0.0, 200.0, 250.0, 300.0, 350.0, 400.0,
-//		450.0, 500.0, 550.0, 600.0, 650.0, 700.0, 750.0, 800.0
-//	};
-//	for (int i = 0; i < sizeof(groundCheckHeight) / sizeof(float); i++)
-//	{
-//		ENTITY::SET_ENTITY_COORDS_NO_OFFSET(ped, coords.x, coords.y, groundCheckHeight[i], 0, 0, 1);
-//		WAIT(100);
-//		if (GAMEPLAY::GET_GROUND_Z_FOR_3D_COORD(coords.x, coords.y, groundCheckHeight[i], &coords.z, FALSE))
-//		{
-//			groundFound = true;
-//			coords.z += 3.0;
-//			ENTITY::SET_ENTITY_COORDS_NO_OFFSET(ped, coords.x, coords.y, coords.z, 0, 0, 1);
-//			WAIT(0);
-//			break;
-//		}
-//	}
-//
-//	return groundFound;
-//}
 
 void process_social_bus()
 {
@@ -2368,59 +2341,59 @@ void process_social_generation()
 			break;
 		}
 
-		Vector3 playerPose = ENTITY::GET_ENTITY_COORDS(playerPed, true);
-		float playerHeading = ENTITY::GET_ENTITY_HEADING(playerPed);
-		float x, y;
-		if (GRAPHICS::_WORLD3D_TO_SCREEN2D(playerPose.x, playerPose.y, playerPose.z, &x, &y))
-		{
-			char text[256];
-			sprintf_s(text, "%f, %f, %f, %f", playerPose.x, playerPose.y, playerPose.z, playerHeading);
-			UI::SET_TEXT_FONT(0);
-			UI::SET_TEXT_SCALE(0.2, 0.2);
-			UI::SET_TEXT_COLOUR(255, 0, 0, 255);
-			UI::SET_TEXT_WRAP(0.0, 1.0);
-			UI::SET_TEXT_CENTRE(0);
-			UI::SET_TEXT_DROPSHADOW(0, 0, 0, 0, 0);
-			UI::SET_TEXT_EDGE(1, 0, 0, 0, 205);
-			UI::_SET_TEXT_ENTRY("STRING");
-			UI::_ADD_TEXT_COMPONENT_STRING(text);
-			UI::_DRAW_TEXT(x, y);
-		}
-
-		//if (GetTickCount() - currentTickCount > dataRecordTimeSeg)
+		//Vector3 playerPose = ENTITY::GET_ENTITY_COORDS(playerPed, true);
+		//float playerHeading = ENTITY::GET_ENTITY_HEADING(playerPed);
+		//float x, y;
+		//if (GRAPHICS::_WORLD3D_TO_SCREEN2D(playerPose.x, playerPose.y, playerPose.z, &x, &y))
 		//{
-		//	int countPeds = worldGetAllPeds(peds, arrSize);
-		//	int countVehicles = worldGetAllVehicles(vehicles, arrSize);
-
-		//	SYSTEMTIME time;
-		//	GetSystemTime(&time);
-		//	char filename[4096];
-		//	sprintf_s(filename, "social_traj_data/frame_Y%luM%luD%luh%lum%lus%lums%lu", time.wYear, time.wMonth, time.wDay, time.wHour, time.wMinute, time.wSecond, time.wMilliseconds);
-		//	FILE* fid = fopen(filename, "w");
-
-		//	Vector3 playerPose = ENTITY::GET_ENTITY_COORDS(playerPed, true);
-		//	for (int i = 0; i < countPeds; i++)
-		//	{
-		//		if (peds[i] != playerPed)
-		//		{
-		//			Vector3 pedPose = ENTITY::GET_ENTITY_COORDS(peds[i], true);
-		//			float pedHeading = ENTITY::GET_ENTITY_HEADING(peds[i]);
-		//			if(SYSTEM::VDIST(playerPose.x, playerPose.y, playerPose.z, pedPose.x, pedPose.y, pedPose.z) < 1000.0)
-		//				fprintf(fid, "ped %ld %f %f %f %f\n", peds[i], pedPose.x, pedPose.y, pedPose.z, pedHeading);
-		//		}
-		//	}
-
-		//	for (int i = 0; i < countVehicles; i++)
-		//	{
-		//		Vector3 vehiclePose = ENTITY::GET_ENTITY_COORDS(vehicles[i], true);
-		//		float vehicleHeading = ENTITY::GET_ENTITY_HEADING(vehicles[i]);
-		//		if(SYSTEM::VDIST(playerPose.x, playerPose.y, playerPose.z, vehiclePose.x, vehiclePose.y, vehiclePose.z) < 1000.0)
-		//			fprintf(fid, "veh %ld %f %f %f %f\n", vehicles[i], vehiclePose.x, vehiclePose.y, vehiclePose.z, vehicleHeading);
-		//	}
-
-		//	fclose(fid);
-		//	currentTickCount = GetTickCount();
+		//	char text[256];
+		//	sprintf_s(text, "%f, %f, %f, %f", playerPose.x, playerPose.y, playerPose.z, playerHeading);
+		//	UI::SET_TEXT_FONT(0);
+		//	UI::SET_TEXT_SCALE(0.2, 0.2);
+		//	UI::SET_TEXT_COLOUR(255, 0, 0, 255);
+		//	UI::SET_TEXT_WRAP(0.0, 1.0);
+		//	UI::SET_TEXT_CENTRE(0);
+		//	UI::SET_TEXT_DROPSHADOW(0, 0, 0, 0, 0);
+		//	UI::SET_TEXT_EDGE(1, 0, 0, 0, 205);
+		//	UI::_SET_TEXT_ENTRY("STRING");
+		//	UI::_ADD_TEXT_COMPONENT_STRING(text);
+		//	UI::_DRAW_TEXT(x, y);
 		//}
+
+		if (GetTickCount() - currentTickCount > dataRecordTimeSeg)
+		{
+			int countPeds = worldGetAllPeds(peds, arrSize);
+			int countVehicles = worldGetAllVehicles(vehicles, arrSize);
+
+			SYSTEMTIME time;
+			GetSystemTime(&time);
+			char filename[4096];
+			sprintf_s(filename, "social_traj_data/frame_Y%luM%luD%luh%lum%lus%lums%03lu", time.wYear, time.wMonth, time.wDay, time.wHour, time.wMinute, time.wSecond, time.wMilliseconds);
+			FILE* fid = fopen(filename, "w");
+
+			Vector3 playerPose = ENTITY::GET_ENTITY_COORDS(playerPed, true);
+			for (int i = 0; i < countPeds; i++)
+			{
+				if (peds[i] != playerPed)
+				{
+					Vector3 pedPose = ENTITY::GET_ENTITY_COORDS(peds[i], true);
+					float pedHeading = ENTITY::GET_ENTITY_HEADING(peds[i]);
+					if(SYSTEM::VDIST(playerPose.x, playerPose.y, playerPose.z, pedPose.x, pedPose.y, pedPose.z) < 1000.0)
+						fprintf(fid, "ped %ld %f %f %f %f\n", peds[i], pedPose.x, pedPose.y, pedPose.z, pedHeading);
+				}
+			}
+
+			for (int i = 0; i < countVehicles; i++)
+			{
+				Vector3 vehiclePose = ENTITY::GET_ENTITY_COORDS(vehicles[i], true);
+				float vehicleHeading = ENTITY::GET_ENTITY_HEADING(vehicles[i]);
+				if(SYSTEM::VDIST(playerPose.x, playerPose.y, playerPose.z, vehiclePose.x, vehiclePose.y, vehiclePose.z) < 1000.0)
+					fprintf(fid, "veh %ld %f %f %f %f\n", vehicles[i], vehiclePose.x, vehiclePose.y, vehiclePose.z, vehicleHeading);
+			}
+
+			fclose(fid);
+			currentTickCount = GetTickCount();
+		}
 
 		waitTime = 10;
 	}
